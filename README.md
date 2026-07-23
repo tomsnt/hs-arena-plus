@@ -21,7 +21,7 @@ macOS overlay for Hearthstone Arena draft. Shows card ratings, synergies, deck h
 ## Quick Install (Terminal)
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/hs-arena-plus.git
+git clone https://github.com/tomsnt/hs-arena-plus.git
 cd hs-arena-plus
 bash install.sh
 ```
