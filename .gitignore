@@ -8,3 +8,5 @@ ui_settings.json
 .cache/
 /tmp/hs_*
 *.DS_Store
+build/
+dist/
