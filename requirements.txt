@@ -1,0 +1,6 @@
+PyQt6>=6.6.0
+requests>=2.31.0
+Pillow>=10.0.0
+pyobjc-framework-Quartz>=10.0
+pyobjc-framework-Vision>=10.0
+pyobjc-framework-AppKit>=10.0

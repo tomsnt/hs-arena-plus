@@ -1,0 +1,10 @@
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+calibration.json
+ui_settings.json
+*.lock
+.cache/
+/tmp/hs_*
+*.DS_Store
