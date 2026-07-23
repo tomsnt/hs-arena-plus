@@ -1,21 +1,21 @@
 # HS Arena Plus
 
-Overlay per macOS che mostra rating, sinergie e consigli per il draft Arena di Hearthstone in tempo reale.
+macOS overlay that shows real-time card ratings, synergies and deck tips during Hearthstone Arena draft.
 
 ---
 
-## Installazione facile (App)
+## Easy Install (App)
 
-1. Scarica `HSArenaPlus.dmg` dalla sezione [Releases](https://github.com/tomsnt/hs-arena-plus/releases)
-2. Aprilo e trascina l'app nella cartella Applicazioni
-3. Al primo avvio macOS potrebbe bloccarla — vai in **Impostazioni → Privacy e Sicurezza → Apri comunque**
-4. Alla prima esecuzione concedi il permesso di **Registrazione Schermo** quando richiesto
+1. Download `HSArenaPlus.dmg` from [Releases](https://github.com/tomsnt/hs-arena-plus/releases)
+2. Open it and drag the app to your Applications folder
+3. On first launch macOS may block it — go to **System Settings → Privacy & Security → Open Anyway**
+4. When prompted, grant **Screen Recording** permission
 
 ---
 
-## Installazione da terminale
+## Install from Terminal
 
-**Requisiti:** macOS 10.15+, Python 3.9+
+**Requirements:** macOS 10.15+, Python 3.9+
 
 ```bash
 git clone https://github.com/tomsnt/hs-arena-plus.git
@@ -23,7 +23,7 @@ cd hs-arena-plus
 bash install.sh
 ```
 
-Per avviare:
+To launch:
 ```bash
 source .venv/bin/activate
 python main.py
@@ -31,9 +31,9 @@ python main.py
 
 ---
 
-## Calibrazione
+## Calibration
 
-Se le zone di riconoscimento non sono allineate al tuo schermo:
+If the card name regions don't align with your screen:
 ```bash
 python calibrate.py
 ```
