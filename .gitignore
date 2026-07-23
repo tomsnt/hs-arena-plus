@@ -10,3 +10,4 @@ ui_settings.json
 *.DS_Store
 build/
 dist/
+app_icon.icns

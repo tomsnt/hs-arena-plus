@@ -4,6 +4,7 @@ APP = ['main.py']
 DATA_FILES = []
 OPTIONS = {
     'argv_emulation': False,
+    'iconfile': 'app_icon.icns',
     'plist': {
         'CFBundleName': 'HS Arena Plus',
         'CFBundleDisplayName': 'HS Arena Plus',
