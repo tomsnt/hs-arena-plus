@@ -809,7 +809,7 @@ class MenuBarApp:
 # ---------------------------------------------------------------------------
 def main():
     import os, fcntl
-    lock_path = "/tmp/hs_arena_overlay.lock"
+    lock_path = "/tmp/hs_arena_plus.lock"
     lock_file = open(lock_path, "w")
     try:
         fcntl.flock(lock_file, fcntl.LOCK_EX | fcntl.LOCK_NB)
