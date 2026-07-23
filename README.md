@@ -26,7 +26,7 @@ bash install.sh
 To launch:
 ```bash
 source .venv/bin/activate
-python main.py
+python app.py
 ```
 
 ---

@@ -1,6 +1,6 @@
 from setuptools import setup
 
-APP = ['main.py']
+APP = ['app.py']
 DATA_FILES = []
 OPTIONS = {
     'argv_emulation': False,
@@ -25,6 +25,7 @@ OPTIONS = {
         'app', 'settings_window', 'ui_settings', 'calibrate',
     ],
     'excludes': ['pytesseract', 'tkinter'],
+    'no_zip': True,
 }
 
 setup(
