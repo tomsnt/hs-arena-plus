@@ -208,7 +208,7 @@ class DeckRatingWidget(QWidget):
         self.grade_lbl.setStyleSheet(f"color: {color}; font-size: 30px; font-weight: bold;")
 
         mod_str = f" ({modifier:+d})" if modifier else ""
-        self.score_lbl.setText(f"{avg:.0f}{mod_str}  ({len(scores)} carte)")
+        self.score_lbl.setText(f"{avg:.0f}{mod_str}  ({len(scores)} cards)")
 
         # ── Top-tier % bar ────────────────────────────────────────────────
         pct = compute_top_tier_pct(deck_ids, card_db) if card_db else None
@@ -388,7 +388,7 @@ class CardTile(QFrame):
         root.addWidget(self.syn_cards_lbl)
 
         # ── Row 7: Anti-synergy title ─────────────────────────────────────
-        self.anti_title_lbl = QLabel("Anti-sinergie:")
+        self.anti_title_lbl = QLabel("Anti-synergies:")
         self.anti_title_lbl.setFont(QFont("Helvetica", s["font_syn_title"], QFont.Weight.Bold))
         self.anti_title_lbl.setAlignment(Qt.AlignmentFlag.AlignLeft)
         self.anti_title_lbl.setStyleSheet("color: rgba(255,100,80,220); margin: 0; padding: 0;")
@@ -696,3 +696,166 @@ class ArenaOverlay(QWidget):
 
     def push_hide(self):
         self.signals.hide_overlay.emit()
+
+
+# ---------------------------------------------------------------------------
+# Hero pick overlay
+# ---------------------------------------------------------------------------
+
+class _HeroSignals(QObject):
+    update_heroes = pyqtSignal(list, int)   # [class_ids or None], best_idx
+    hide_heroes   = pyqtSignal()
+
+
+class _HeroTile(QFrame):
+    """Compact tile showing class name + tier for hero selection recommendation."""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        lay = QVBoxLayout(self)
+        lay.setContentsMargins(10, 8, 10, 8)
+        lay.setSpacing(4)
+
+        self.class_lbl = QLabel("")
+        self.class_lbl.setFont(QFont("Helvetica", 13, QFont.Weight.Bold))
+        self.class_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.class_lbl.setStyleSheet("color: #FFFFFF;")
+        lay.addWidget(self.class_lbl)
+
+        div = QFrame()
+        div.setFrameShape(QFrame.Shape.HLine)
+        div.setFixedHeight(1)
+        div.setStyleSheet("background: rgba(255,255,255,35);")
+        lay.addWidget(div)
+
+        self.tier_lbl = QLabel("?")
+        self.tier_lbl.setFont(QFont("Helvetica", 26, QFont.Weight.Bold))
+        self.tier_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        lay.addWidget(self.tier_lbl)
+
+        self.score_lbl = QLabel("")
+        self.score_lbl.setFont(QFont("Helvetica", 10))
+        self.score_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.score_lbl.setStyleSheet("color: rgba(255,255,255,170);")
+        lay.addWidget(self.score_lbl)
+
+        self.rec_lbl = QLabel("")
+        self.rec_lbl.setFont(QFont("Helvetica", 10, QFont.Weight.Bold))
+        self.rec_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        lay.addWidget(self.rec_lbl)
+
+        self.setFixedWidth(155)
+        self.hide()
+
+    def set_hero(self, class_id, rating: dict, is_best: bool):
+        if not class_id:
+            self.hide()
+            return
+        from ratings import CLASS_DISPLAY_NAMES
+        display = CLASS_DISPLAY_NAMES.get(class_id, class_id.capitalize())
+        self.class_lbl.setText(display)
+
+        tier = rating.get("tier", "?")
+        color = TIER_COLORS.get(tier, "#9E9E9E")
+        self.tier_lbl.setText(tier)
+        self.tier_lbl.setStyleSheet(f"color: {color}; font-size: 26px; font-weight: bold;")
+
+        wr = rating.get("avg_winrate")
+        score = rating.get("score")
+        if wr is not None:
+            self.score_lbl.setText(f"WR: {wr:.1f}%")
+        elif score is not None:
+            self.score_lbl.setText(f"Score: {score}")
+        else:
+            self.score_lbl.setText("")
+
+        if is_best:
+            self.rec_lbl.setText("★ PICK")
+            self.rec_lbl.setStyleSheet("color: #FFD700; font-weight: bold;")
+        else:
+            self.rec_lbl.setText("")
+
+        border = "#FFD700" if is_best else "rgba(255,255,255,55)"
+        bg     = "rgba(20,40,10,235)"  if is_best else "rgba(10,12,22,215)"
+        self.setStyleSheet(f"""
+            _HeroTile {{
+                background: {bg};
+                border: 2px solid {border};
+                border-radius: 10px;
+            }}
+        """)
+        self.adjustSize()
+        self.show()
+
+
+class HeroPickOverlay(QWidget):
+    """Full-screen transparent overlay that recommends which hero to pick in Arena."""
+
+    def __init__(self):
+        super().__init__()
+        self._signals = _HeroSignals()
+        self._signals.update_heroes.connect(self._on_update)
+        self._signals.hide_heroes.connect(self._hide_all)
+        self._setup_window()
+        self._tiles = [_HeroTile(self), _HeroTile(self), _HeroTile(self)]
+        self._header = QLabel("PICK YOUR HERO", self)
+        self._header.setFont(QFont("Helvetica", 11, QFont.Weight.Bold))
+        self._header.setStyleSheet(
+            "background: rgba(10,12,22,215);"
+            "color: rgba(255,215,0,220);"
+            "border: 1px solid rgba(255,215,0,80);"
+            "border-radius: 6px;"
+            "padding: 3px 10px;"
+        )
+        self._header.adjustSize()
+        self._header.hide()
+        self._position_tiles()
+
+    def _setup_window(self):
+        self.setWindowFlags(
+            Qt.WindowType.WindowStaysOnTopHint |
+            Qt.WindowType.FramelessWindowHint |
+            Qt.WindowType.Tool |
+            Qt.WindowType.WindowTransparentForInput
+        )
+        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+        self.setAttribute(Qt.WidgetAttribute.WA_ShowWithoutActivating)
+        screen = QApplication.primaryScreen().geometry()
+        self.setGeometry(screen)
+
+    def _position_tiles(self):
+        screen = QApplication.primaryScreen().geometry()
+        sw, sh = screen.width(), screen.height()
+        tile_w = 155
+        y = int(sh * 0.83)
+        centers = [int(sw * 0.20), int(sw * 0.50), int(sw * 0.80)]
+        for tile, cx in zip(self._tiles, centers):
+            tile.setFixedWidth(tile_w)
+            tile.move(cx - tile_w // 2, y)
+        hx = sw // 2 - self._header.width() // 2
+        self._header.move(hx, max(0, y - 28))
+
+    def _on_update(self, class_ids: list, best_idx: int):
+        from ratings import load_hero_ratings
+        hero_ratings = load_hero_ratings()
+        for i, (tile, cls) in enumerate(zip(self._tiles, class_ids)):
+            rating = hero_ratings.get(cls, {}) if cls else {}
+            tile.set_hero(cls, rating, is_best=(i == best_idx))
+        self._header.adjustSize()
+        screen = QApplication.primaryScreen().geometry()
+        sw = screen.width()
+        self._header.move(sw // 2 - self._header.width() // 2, self._header.y())
+        self._header.show()
+        self.show()
+        self.raise_()
+
+    def _hide_all(self):
+        for t in self._tiles:
+            t.hide()
+        self._header.hide()
+
+    def push_heroes(self, class_ids: list, best_idx: int):
+        self._signals.update_heroes.emit(class_ids, best_idx)
+
+    def hide_heroes(self):
+        self._signals.hide_heroes.emit()

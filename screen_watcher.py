@@ -1,6 +1,6 @@
 """
-Screen-based watcher: trova la finestra Hearthstone via Quartz,
-fa screenshot e OCR dei nomi delle carte nel draft arena.
+Screen-based watcher: finds the Hearthstone window via Quartz,
+takes screenshots and OCRs card names during arena draft.
 """
 import subprocess
 import time
@@ -36,6 +36,29 @@ DEFAULT_REGIONS = [
     (0.64, 0.52, 0.93, 0.64),
 ]
 
+# Default regions for hero class name text in hero selection screen
+DEFAULT_HERO_REGIONS = [
+    (0.08, 0.70, 0.33, 0.80),
+    (0.37, 0.70, 0.62, 0.80),
+    (0.65, 0.70, 0.90, 0.80),
+]
+
+CLASS_NORMALIZE = {
+    "demon hunter": "DEMONHUNTER",
+    "demonhunter": "DEMONHUNTER",
+    "death knight": "DEATHKNIGHT",
+    "deathknight": "DEATHKNIGHT",
+    "druid": "DRUID",
+    "hunter": "HUNTER",
+    "mage": "MAGE",
+    "paladin": "PALADIN",
+    "priest": "PRIEST",
+    "rogue": "ROGUE",
+    "shaman": "SHAMAN",
+    "warlock": "WARLOCK",
+    "warrior": "WARRIOR",
+}
+
 
 def load_calibration():
     """Returns (regions, window_owner). window_owner None = full screen."""
@@ -45,14 +68,39 @@ def load_calibration():
             data = json.loads(CALIBRATION_FILE.read_text())
             regions = [tuple(r) for r in data.get("regions", [])]
             owner = data.get("window_owner")
-            label = data.get("window_label", "schermo intero")
+            label = data.get("window_label", "full screen")
             if len(regions) == 3:
-                log(f"[screen] Calibrazione caricata — finestra: {label}")
+                log(f"[screen] Calibration loaded — window: {label}")
                 return regions, owner
         except Exception:
             pass
-    log("[screen] Usando regioni default — calibra dalla app prima di avviare")
+    log("[screen] Using default regions — calibrate from app before starting")
     return DEFAULT_REGIONS, None
+
+
+def load_hero_regions() -> list:
+    if CALIBRATION_FILE.exists():
+        try:
+            import json
+            data = json.loads(CALIBRATION_FILE.read_text())
+            hero_regions = [tuple(r) for r in data.get("hero_regions", [])]
+            if len(hero_regions) == 3:
+                return hero_regions
+        except Exception:
+            pass
+    return DEFAULT_HERO_REGIONS
+
+
+def _match_class(text: str) -> Optional[str]:
+    if not text:
+        return None
+    clean = re.sub(r"[^a-z ]", "", text.strip().lower()).strip()
+    if clean in CLASS_NORMALIZE:
+        return CLASS_NORMALIZE[clean]
+    matches = difflib.get_close_matches(clean, list(CLASS_NORMALIZE.keys()), n=1, cutoff=0.70)
+    if matches:
+        return CLASS_NORMALIZE[matches[0]]
+    return None
 
 
 def load_regions():
@@ -62,7 +110,7 @@ def load_regions():
 
 def check_dependencies() -> bool:
     if not _VISION_AVAILABLE:
-        log("[screen] ERRORE: Apple Vision non disponibile (macOS 10.15+ richiesto)")
+        log("[screen] ERROR: Apple Vision not available (macOS 10.15+ required)")
         return False
     return True
 
@@ -197,12 +245,15 @@ def find_card_id(name_ocr: str, name_to_id: Dict[str, str], cutoff: float = 0.60
 
 
 class ScreenWatcher:
-    def __init__(self, on_cards: Callable, on_draft_end: Optional[Callable] = None):
+    def __init__(self, on_cards: Callable, on_draft_end: Optional[Callable] = None,
+                 on_heroes: Optional[Callable] = None):
         self.on_cards = on_cards
         self.on_draft_end = on_draft_end
+        self.on_heroes = on_heroes
         self._stop = threading.Event()
         self._thread = None
         self._last_cards = None
+        self._last_heroes: Optional[List] = None
         self._name_to_id: Dict[str, str] = {}
         # Retina scale: screenshot pixels / logical pixels
         self._scale: float = 2.0
@@ -225,7 +276,7 @@ class ScreenWatcher:
                     continue
                 if not card_id.startswith("CORE_") and existing.startswith("CORE_"):
                     self._name_to_id[name] = card_id
-        log(f"[screen] Indice: {len(self._name_to_id)} nomi carte")
+        log(f"[screen] Index: {len(self._name_to_id)} card names")
 
     def start(self):
         if not check_dependencies():
@@ -248,7 +299,7 @@ class ScreenWatcher:
         """Screenshot schermo intero + ritaglio finestra (Metal/GPU-safe)."""
         img = take_screenshot(None)
         if img is None:
-            log("[screen] Screenshot fallito — aggiungi Terminale in Privacy → Registrazione schermo")
+            log("[screen] Screenshot failed — add Terminal in Privacy → Screen Recording")
             return None
         if not window_owner:
             return img
@@ -279,7 +330,7 @@ class ScreenWatcher:
                 x0 = max(0, x0); y0 = max(0, y0)
                 x1 = min(img.width, x1); y1 = min(img.height, y1)
                 cropped = img.crop((x0, y0, x1, y1))
-                log(f"[screen] Ritaglio {window_owner}: {cropped.size}")
+                log(f"[screen] Cropped {window_owner}: {cropped.size}")
                 return cropped
         except Exception as e:
             log(f"[screen] Quartz crop error: {e}")
@@ -322,13 +373,13 @@ class ScreenWatcher:
 
     def _watch(self):
         regions, window_owner = load_calibration()
-        log(f"[screen] Avviato — regioni su schermo intero")
+        log(f"[screen] Started — full screen regions")
 
         while not self._stop.is_set():
             # Use full-screen screenshot so calibration coordinates (drawn on full screen) match
             img = take_screenshot(None)
             if img is None:
-                log("[screen] Screenshot fallito — aggiungi Terminale in Privacy → Registrazione schermo")
+                log("[screen] Screenshot failed — add Terminal in Privacy → Screen Recording")
                 time.sleep(5)
                 continue
             bounds = (0, 0, img.width, img.height)
@@ -346,7 +397,7 @@ class ScreenWatcher:
                     pass
                 proc = preprocess(crop)
                 name_ocr = ocr_card_name(proc)
-                log(f"[screen] Carta {i+1} OCR: {name_ocr!r}")
+                log(f"[screen] Card {i+1} OCR: {name_ocr!r}")
 
                 result = find_card_id(name_ocr, self._name_to_id)
                 if result and isinstance(result, tuple):
@@ -357,14 +408,36 @@ class ScreenWatcher:
                     card_ids.append(result)
                     card_names.append(name_ocr)
 
-            log(f"[screen] Carte identificate: {card_names}")
+            log(f"[screen] Cards identified: {card_names}")
 
             # OCR deck panel
             deck_ids = self._ocr_deck_panel(img)
-            log(f"[screen] Mazzo ({len(deck_ids)} carte): {deck_ids[:5]}{'…' if len(deck_ids)>5 else ''}")
+            log(f"[screen] Deck ({len(deck_ids)} cards): {deck_ids[:5]}{'…' if len(deck_ids)>5 else ''}")
 
             if len(card_ids) >= 3 and card_ids[:3] != self._last_cards:
                 self._last_cards = card_ids[:3]
+                self._last_heroes = None  # reset hero state when cards detected
                 self.on_cards(card_ids[:3], deck_ids)
+            elif len(card_ids) < 2 and self.on_heroes:
+                heroes = self._detect_heroes(img, bounds)
+                if heroes != self._last_heroes:
+                    self._last_heroes = heroes
+                    self.on_heroes(heroes)
 
             time.sleep(POLL_INTERVAL)
+
+    def _detect_heroes(self, img, bounds) -> Optional[List]:
+        """OCR hero name regions; returns [cls1, cls2, cls3] if ≥2 match known classes, else None."""
+        hero_regions = load_hero_regions()
+        classes = []
+        for region in hero_regions:
+            crop = crop_card_name(img, bounds, region, self._scale)
+            proc = preprocess(crop)
+            text = ocr_card_name(proc)
+            cls = _match_class(text)
+            log(f"[screen] Hero OCR: {text!r} → {cls}")
+            classes.append(cls)
+        found = [c for c in classes if c]
+        if len(found) >= 2:
+            return classes
+        return None

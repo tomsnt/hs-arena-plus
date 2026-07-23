@@ -25,7 +25,7 @@ CALIBRATION_FILE = Path(__file__).parent / "calibration.json"
 # Window helpers via Quartz
 # ---------------------------------------------------------------------------
 def _get_window_bounds(owner_name: str):
-    """Restituisce (x, y, w, h) in logical points per la finestra dell'app specificata."""
+    """Returns (x, y, w, h) in logical points for the specified app window."""
     try:
         import Quartz
         wins = Quartz.CGWindowListCopyWindowInfo(
@@ -44,7 +44,7 @@ def _get_window_bounds(owner_name: str):
 
 
 def _crop_window_from_screenshot(screenshot_path: str, owner_name: str):
-    """Ritaglia la finestra dell'app dallo screenshot a schermo intero (pixel nativi Retina)."""
+    """Crops the app window from the full-screen screenshot (native Retina pixels)."""
     bounds = _get_window_bounds(owner_name)
     if not bounds:
         return None
@@ -52,7 +52,7 @@ def _crop_window_from_screenshot(screenshot_path: str, owner_name: str):
         from PIL import Image
         img = Image.open(screenshot_path)
         img.load()
-        # Quartz dà coordinate logiche; lo screenshot è ai pixel nativi (2x su Retina)
+        # Quartz gives logical coordinates; screenshot is at native pixels (2x on Retina)
         scale = img.width / Quartz_screen_width()
         bx, by, bw, bh = bounds
         x0 = int(bx * scale)
@@ -68,7 +68,7 @@ def _crop_window_from_screenshot(screenshot_path: str, owner_name: str):
 
 
 def _quartz_screenshot(path: str) -> bool:
-    """Cattura il framebuffer del display direttamente — funziona con Metal/GPU (Hearthstone)."""
+    """Captures the display framebuffer directly — works with Metal/GPU (Hearthstone)."""
     try:
         import Quartz
         import AppKit
@@ -86,7 +86,7 @@ def _quartz_screenshot(path: str) -> bool:
             AppKit.NSBitmapImageFileTypePNG, {})
         return bool(png.writeToFile_atomically_(path, True))
     except Exception as e:
-        print(f"[screenshot] Quartz fallito: {e}")
+        print(f"[screenshot] Quartz failed: {e}")
         return False
 
 
@@ -195,7 +195,7 @@ def make_tray_icon(active: bool = False) -> QIcon:
 # ---------------------------------------------------------------------------
 # Proporzioni interne sagoma carta Hearthstone
 _CARD_ASPECT = 0.710          # width / height (misurato da screenshot reale)
-_TITLE_FRAC  = (0.16, 0.49, 0.84, 0.60)   # fascia nome dorata → area OCR (bordi esclusi)
+_TITLE_FRAC  = (0.16, 0.49, 0.84, 0.60)   # golden name band → OCR area (borders excluded)
 _ART_FRAC    = (0.07, 0.07, 0.93, 0.48)
 _DESC_FRAC   = (0.06, 0.62, 0.94, 0.95)
 _MANA_C = (0.08, 0.12); _MANA_R = 0.12
@@ -209,7 +209,7 @@ class DraggableCard(QWidget):
     Drag ovunque; angolo basso-destra scala mantenendo proporzioni."""
 
     _BORDER = [QColor(255, 90, 90), QColor(70, 210, 90), QColor(80, 140, 255)]
-    _LABELS = ["Carta 1", "Carta 2", "Carta 3"]
+    _LABELS = ["Card 1", "Card 2", "Card 3"]
 
     def __init__(self, index: int, parent: QWidget, x: int, y: int, w: int):
         super().__init__(parent)
@@ -296,7 +296,7 @@ class DraggableCard(QWidget):
 class CalibrationWindow(QWidget):
     def __init__(self, screenshot_path: str, window_owner: Optional[str] = None):
         super().__init__()
-        self.setWindowTitle("HS Arena Plus — Posiziona le zone carta")
+        self.setWindowTitle("HS Arena Plus — Position card zones")
         self._screenshot_path = screenshot_path
         self._window_owner = window_owner
         self.canvas_widget = None
@@ -312,17 +312,17 @@ class CalibrationWindow(QWidget):
         root.setSpacing(8)
 
         hint = QLabel(
-            "Trascina le <b>sagome carta</b> sopra i <b>nomi delle 3 carte</b> "
-            "(angolo basso-destra per scalare). "
-            "Il riquadro <b style='color:#d4a017'>dorato</b> è l'area letta dall'OCR. "
-            "Poi clicca <b>✓ Salva</b>."
+            "Drag the <b>card outlines</b> over the <b>3 card names</b> "
+            "(bottom-right corner to resize). "
+            "The <b style='color:#d4a017'>golden</b> box is the OCR read area. "
+            "Then click <b>✓ Save</b>."
         )
         hint.setWordWrap(True)
         hint.setStyleSheet("background:#1e1e2e; color:#ccc; padding:8px; border-radius:6px;")
         root.addWidget(hint)
 
         btn_row = QHBoxLayout()
-        self.btn_save = QPushButton("✓  Salva calibrazione")
+        self.btn_save = QPushButton("✓  Save calibration")
         self.btn_save.setFixedHeight(36)
         self.btn_save.setStyleSheet("background:#4CAF50; color:white; font-weight:bold;")
         self.btn_save.clicked.connect(self._save)
@@ -342,7 +342,7 @@ class CalibrationWindow(QWidget):
 
     def _load_screenshot(self):
         if not Path(self._screenshot_path).exists():
-            self.lbl_status.setText("⚠ Screenshot non trovato")
+            self.lbl_status.setText("⚠ Screenshot not found")
             return
         MAX_W, MAX_H = 1400, 800
         px = QPixmap(self._screenshot_path)
@@ -367,11 +367,11 @@ class CalibrationWindow(QWidget):
             self._cards.append(card)
 
         self.scroll.setWidget(self.canvas_widget)
-        self.lbl_status.setText(f"{orig_w}×{orig_h}px — trascina i rettangoli sui nomi delle carte")
+        self.lbl_status.setText(f"{orig_w}×{orig_h}px — drag rectangles over card names")
         self.adjustSize()
 
     def _positions_from_saved(self):
-        """Ricostruisce posizione/scala card dalle regioni titolo salvate."""
+        """Reconstruct card position/scale from saved title regions."""
         dw, dh = self._disp_w, self._disp_h
         def_w = max(100, int(dw * 0.18))
         defaults = [
@@ -404,8 +404,8 @@ class CalibrationWindow(QWidget):
         regions = [c.title_region(self._disp_w, self._disp_h) for c in self._cards]
         data = {"regions": regions, "window_owner": self._window_owner}
         CALIBRATION_FILE.write_text(json.dumps(data, indent=2))
-        self.lbl_status.setText("✓ Salvato!")
-        log(f"[calibrate] Salvato — {regions}")
+        self.lbl_status.setText("✓ Saved!")
+        log(f"[calibrate] Saved — {regions}")
         # Notify app to reposition overlay tiles
         cb = getattr(self, "_save_callback", None)
         if cb:
@@ -451,6 +451,7 @@ class MenuBarApp:
 
         self._watcher = None
         self._overlay = None
+        self._hero_overlay = None
         self._running = False
         self._pinned = False
         self._card_db = {}
@@ -469,10 +470,10 @@ class MenuBarApp:
         self._mi_toggle = None
         self._build_menu()
 
-        # Preload dati in background — usa segnale per tornare al main thread
+        # Preload data in background — use signal to return to main thread
         _log_bridge.preload_done.connect(self._on_loaded)
         _log_bridge.open_calibration.connect(self._open_calibration)
-        self._status = "Caricamento dati..."
+        self._status = "Loading data..."
         self._update_menu()
         threading.Thread(target=self._preload, daemon=True).start()
 
@@ -520,7 +521,7 @@ class MenuBarApp:
 
         # Status (disabled header)
         self._mi_status = AppKit.NSMenuItem.new()
-        self._mi_status.setTitle_("Caricamento...")
+        self._mi_status.setTitle_("Loading...")
         self._mi_status.setEnabled_(False)
         menu.addItem_(self._mi_status)
 
@@ -528,7 +529,7 @@ class MenuBarApp:
 
         # Toggle overlay
         self._mi_toggle = AppKit.NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(
-            "Avvia Overlay", "menuAction:", "")
+            "Start Overlay", "menuAction:", "")
         self._mi_toggle.setTarget_(self._menu_delegate)
         self._mi_toggle.setRepresentedObject_("_cb_toggle")
         self._mi_toggle.setEnabled_(False)
@@ -539,7 +540,7 @@ class MenuBarApp:
 
         # Calibra
         mi_cal = AppKit.NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(
-            "Calibra zone screenshot", "menuAction:", "")
+            "Calibrate screenshot zones", "menuAction:", "")
         mi_cal.setTarget_(self._menu_delegate)
         mi_cal.setRepresentedObject_("_cb_cal")
         self._cb_cal = lambda: self._shoot_and_calibrate("Hearthstone")
@@ -547,7 +548,7 @@ class MenuBarApp:
 
         # Log
         mi_log = AppKit.NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(
-            "Mostra log", "menuAction:", "")
+            "Show log", "menuAction:", "")
         mi_log.setTarget_(self._menu_delegate)
         mi_log.setRepresentedObject_("_cb_log")
         self._cb_log = self._open_log
@@ -563,7 +564,7 @@ class MenuBarApp:
 
         # Settings
         mi_settings = AppKit.NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(
-            "⚙ Impostazioni UI", "menuAction:", "")
+            "⚙ UI Settings", "menuAction:", "")
         mi_settings.setTarget_(self._menu_delegate)
         mi_settings.setRepresentedObject_("_cb_settings")
         self._cb_settings = self._open_settings
@@ -595,10 +596,10 @@ class MenuBarApp:
             self._mi_status.setTitle_(self._status)
         if self._mi_toggle:
             if self._running:
-                self._mi_toggle.setTitle_("Ferma Overlay")
+                self._mi_toggle.setTitle_("Stop Overlay")
                 self._sb_item.setTitle_("A+ ●")
             else:
-                self._mi_toggle.setTitle_("Avvia Overlay")
+                self._mi_toggle.setTitle_("Start Overlay")
                 self._sb_item.setTitle_("A+")
 
     def _preload(self):
@@ -609,14 +610,14 @@ class MenuBarApp:
         _log_bridge.preload_done.emit(len(self._card_db), calibrated)
 
     def _on_loaded(self, n_cards: int, calibrated: bool):
-        cal_str = "calibrata" if calibrated else "da calibrare"
-        self._status = f"Pronto — {n_cards} carte — {cal_str}"
+        cal_str = "calibrated" if calibrated else "needs calibration"
+        self._status = f"Ready — {n_cards} cards — {cal_str}"
         if self._mi_toggle:
             self._mi_toggle.setEnabled_(True)
         self._update_menu()
-        log(f"[app] Dati caricati: {n_cards} carte")
+        log(f"[app] Data loaded: {n_cards} cards")
         if not calibrated:
-            log("[app] Calibrazione necessaria: clicca HS nella barra → Calibra zone screenshot")
+            log("[app] Calibration needed: click HS in menu bar → Calibrate screenshot zones")
 
     def _toggle(self):
         if self._running:
@@ -628,11 +629,11 @@ class MenuBarApp:
         self._pinned = not self._pinned
         self._apply_pin_level()
         if self._mi_pin:
-            title = ("✓ 📌 Pin Overlay" if self._pinned else "📌 Pin Overlay")
+            title = ("✓ 📌 Pin overlay" if self._pinned else "📌 Pin overlay")
             self._mi_pin.setTitle_(title)
 
     def _apply_pin_level(self):
-        """Imposta il livello NSWindow dell'overlay per mantenerlo sempre in primo piano."""
+        """Sets the NSWindow level of the overlay to keep it always on top."""
         if self._overlay is None:
             return
         try:
@@ -641,9 +642,9 @@ class MenuBarApp:
             ns_view = objc.objc_object(c_void_p=int(self._overlay.winId()))
             ns_window = ns_view.window()
             if self._pinned:
-                # NSPanel (Tool window) ha hidesOnDeactivate=YES di default:
-                # quando l'app perde focus (es. click su HS) il panel sparisce.
-                # Lo disabilitiamo esplicitamente.
+                # NSPanel (Tool window) has hidesOnDeactivate=YES by default:
+                # when the app loses focus (e.g. clicking HS) the panel disappears.
+                # Disable it explicitly.
                 ns_window.setHidesOnDeactivate_(False)
                 ns_window.setLevel_(AppKit.NSScreenSaverWindowLevel - 1)
                 ns_window.setCollectionBehavior_(
@@ -657,11 +658,29 @@ class MenuBarApp:
                 ns_window.setCollectionBehavior_(
                     AppKit.NSWindowCollectionBehaviorCanJoinAllSpaces
                 )
-            log(f"[app] Pin {'attivato' if self._pinned else 'disattivato'} (level={ns_window.level()}, hidesOnDeactivate={ns_window.hidesOnDeactivate()})")
+            log(f"[app] Pin {'enabled' if self._pinned else 'disabled'} (level={ns_window.level()}, hidesOnDeactivate={ns_window.hidesOnDeactivate()})")
         except Exception as e:
             log(f"[app] Pin error: {e}")
 
+    def _on_heroes_detected(self, class_ids):
+        if not class_ids or not self._hero_overlay:
+            if self._hero_overlay:
+                self._hero_overlay.hide_heroes()
+            return
+        from ratings import load_hero_ratings
+        hero_ratings = load_hero_ratings()
+        def sort_key(i):
+            cls = class_ids[i]
+            if not cls:
+                return -1
+            return hero_ratings.get(cls, {}).get("score", -1)
+        best = max(range(len(class_ids)), key=sort_key)
+        log(f"[app] Hero pick: {class_ids} → best={class_ids[best]}")
+        self._hero_overlay.push_heroes(class_ids, best)
+
     def _on_cards_detected(self, card_ids: list, deck_ids: list):
+        if self._hero_overlay:
+            self._hero_overlay.hide_heroes()
         from synergy import build_deck_profile, compute_synergy, compute_anti_synergy
         from ratings import load_card_db
         card_db = load_card_db()
@@ -672,23 +691,25 @@ class MenuBarApp:
         anti_results   = [compute_anti_synergy(cid, card_db, deck_ids) for cid in card_ids]
         anti_levels    = [r[0] for r in anti_results]
         anti_reasons   = [r[1] for r in anti_results]
-        log(f"[app] Sinergie: {list(zip(card_ids, synergy_levels, anti_levels))}")
+        log(f"[app] Synergies: {list(zip(card_ids, synergy_levels, anti_levels))}")
         self._overlay.push_cards(card_ids, synergy_levels, synergy_cards,
                                   anti_levels, anti_reasons, deck_ids)
 
     def _start(self):
         from screen_watcher import ScreenWatcher
-        from overlay import ArenaOverlay
+        from overlay import ArenaOverlay, HeroPickOverlay
         self._overlay = ArenaOverlay()
+        self._hero_overlay = HeroPickOverlay()
         self._watcher = ScreenWatcher(
             on_cards=self._on_cards_detected,
-            on_draft_end=self._overlay.push_hide)
+            on_draft_end=self._overlay.push_hide,
+            on_heroes=self._on_heroes_detected)
         self._watcher.set_card_db(self._card_db)
         self._watcher.start()
         self._running = True
-        self._status = "Overlay attivo — vai in arena!"
+        self._status = "Overlay active — go to arena!"
         self._update_menu()
-        log("[app] Overlay avviato (OCR screenshot)")
+        log("[app] Overlay started (OCR screenshot)")
         # Applica il livello pin se era attivo
         if self._pinned:
             QTimer.singleShot(200, self._apply_pin_level)
@@ -700,10 +721,13 @@ class MenuBarApp:
         if self._overlay:
             self._overlay.push_hide()
             self._overlay = None
+        if self._hero_overlay:
+            self._hero_overlay.hide_heroes()
+            self._hero_overlay = None
         self._running = False
-        self._status = "Overlay fermato"
+        self._status = "Overlay stopped"
         self._update_menu()
-        log("[app] Overlay fermato")
+        log("[app] Overlay stopped")
 
     def _demo(self):
         from overlay import ArenaOverlay
@@ -713,7 +737,7 @@ class MenuBarApp:
                                   synergy_levels=[1, 2, 0],
                                   anti_levels=[0, 1, 2],
                                   anti_reasons=[[], ["too many weapons (3 in deck)"], ["no tribal buff for BEAST", "no heal"]])
-        log("[app] Demo avviata")
+        log("[app] Demo started")
 
     def _check_screen_recording(self) -> bool:
         """Returns True if screencapture can actually capture screen content (not just wallpaper)."""
@@ -737,7 +761,7 @@ class MenuBarApp:
         QTimer.singleShot(0, lambda: self._calibrate_qt(owner))
 
     def _calibrate_qt(self, owner: Optional[str]):
-        log("[app] Calibrazione: vai su Hearthstone, screenshot tra 3 secondi...")
+        log("[app] Calibration: switch to Hearthstone, screenshot in 3 seconds...")
         if owner:
             subprocess.Popen(['osascript', '-e',
                 f'tell application "{owner}" to activate'])
@@ -746,20 +770,20 @@ class MenuBarApp:
             import time, os
             time.sleep(3)
             path = "/tmp/hs_calibration.png"
-            log("[app] Screenshot in corso...")
+            log("[app] Taking screenshot...")
             r = subprocess.run(['screencapture', '-x', path], capture_output=True, timeout=5)
             if r.returncode == 0 and os.path.exists(path):
-                log("[app] Screenshot ok — apertura calibrazione")
+                log("[app] Screenshot ok — opening calibration")
                 # Use signal to safely call back to main Qt thread
                 _log_bridge.open_calibration.emit(path, owner or "")
             else:
-                log("[app] ERRORE screenshot — aggiungi Terminale in Impostazioni → Privacy → Registrazione schermo")
+                log("[app] ERROR screenshot — add Terminal in Settings → Privacy → Screen Recording")
 
         threading.Thread(target=_do_screenshot, daemon=True).start()
 
     def _open_calibration(self, path: str = "/tmp/hs_calibration.png",
                           owner: str = ""):
-        log(f"[app] Apertura finestra calibrazione: {path}")
+        log(f"[app] Opening calibration window: {path}")
         try:
             if self._cal_window:
                 self._cal_window.close()
@@ -771,9 +795,9 @@ class MenuBarApp:
             # Force bring to front via AppKit
             import AppKit
             AppKit.NSApp.activateIgnoringOtherApps_(True)
-            log("[app] Finestra calibrazione aperta")
+            log("[app] Calibration window opened")
         except Exception as e:
-            log(f"[app] ERRORE apertura calibrazione: {e}")
+            log(f"[app] ERROR opening calibration: {e}")
 
     def _on_calibration_saved(self):
         if self._overlay:
@@ -814,7 +838,7 @@ def main():
     try:
         fcntl.flock(lock_file, fcntl.LOCK_EX | fcntl.LOCK_NB)
     except OSError:
-        print("HS Arena Plus già in esecuzione. Uscita.")
+        print("HS Arena Plus already running. Exiting.")
         sys.exit(0)
 
     app = QApplication(sys.argv)

@@ -70,20 +70,20 @@ def load_card_db() -> Dict[str, dict]:
     if _is_fresh(CARDS_CACHE):
         data = _load_json(CARDS_CACHE)
     else:
-        print("[ratings] Scarico dati carte da HearthstoneJSON...")
+        print("[ratings] Downloading card data from HearthstoneJSON...")
         try:
             resp = requests.get(HEARTHSTONE_JSON_URL, headers=HEADERS, timeout=15)
             resp.raise_for_status()
             data = resp.json()
             _save_json(CARDS_CACHE, data)
         except Exception as e:
-            print(f"[ratings] Errore scaricando carte: {e}")
+            print(f"[ratings] Error downloading cards: {e}")
             data = _load_json(CARDS_CACHE) or []
     _card_db = {c["id"]: c for c in data if "id" in c}
     for c in data:
         if "dbfId" in c:
             _card_db[str(c["dbfId"])] = c
-    print(f"[ratings] Caricate {len(_card_db)} carte.")
+    print(f"[ratings] Loaded {len(_card_db)} cards.")
     return _card_db
 
 
@@ -124,7 +124,7 @@ def load_ratings() -> Dict[str, dict]:
             print(f"[ratings] Ratings in cache: {len(_ratings)} carte.")
             _build_name_index()
             return _ratings
-    print("[ratings] Scarico arena ratings da HearthArena...")
+    print("[ratings] Downloading arena ratings from HearthArena...")
     try:
         resp = requests.get(HEARTHARENA_URL, headers=HEADERS, timeout=20)
         resp.raise_for_status()
@@ -132,7 +132,7 @@ def load_ratings() -> Dict[str, dict]:
         _save_json(RATINGS_CACHE, _ratings)
         print(f"[ratings] Caricate ratings per {len(_ratings)} carte.")
     except Exception as e:
-        print(f"[ratings] Impossibile scaricare ratings: {e}")
+        print(f"[ratings] Failed to download ratings: {e}")
         _ratings = {}
     _build_name_index()
     return _ratings
@@ -243,10 +243,10 @@ def load_hsreplay_arena_stats() -> Dict[str, list]:
         if cached:
             _hsreplay_stats = cached
             total = sum(len(v) for v in _hsreplay_stats.values())
-            print(f"[ratings] HSReplay arena stats dalla cache: {total} cards.")
+            print(f"[ratings] HSReplay arena stats from cache: {total} cards.")
             return _hsreplay_stats
 
-    print("[ratings] Scarico arena win-rates da HSReplay...")
+    print("[ratings] Downloading arena win-rates from HSReplay...")
     try:
         resp = requests.get(HSREPLAY_ARENA_URL, headers=_HSREPLAY_HEADERS, timeout=15)
         resp.raise_for_status()
@@ -257,10 +257,10 @@ def load_hsreplay_arena_stats() -> Dict[str, list]:
             total = sum(len(v) for v in _hsreplay_stats.values())
             print(f"[ratings] HSReplay: {total} card stats, {len(_hsreplay_stats)} classi.")
         else:
-            print("[ratings] HSReplay: formato inatteso — uso fallback.")
+            print("[ratings] HSReplay: unexpected format — using fallback.")
             _hsreplay_stats = {}
     except Exception as e:
-        print(f"[ratings] HSReplay non disponibile ({e}) — uso fallback HearthArena.")
+        print(f"[ratings] HSReplay unavailable ({e}) — using HearthArena fallback.")
         _hsreplay_stats = _load_json(HSREPLAY_CACHE) or {}
 
     return _hsreplay_stats
@@ -367,3 +367,94 @@ TIER_COLORS = {
     "F":  "#B71C1C",  # dark red
     "?":  "#9E9E9E",  # grey
 }
+
+CLASS_DISPLAY_NAMES = {
+    "DRUID": "Druid",
+    "HUNTER": "Hunter",
+    "MAGE": "Mage",
+    "PALADIN": "Paladin",
+    "PRIEST": "Priest",
+    "ROGUE": "Rogue",
+    "SHAMAN": "Shaman",
+    "WARLOCK": "Warlock",
+    "WARRIOR": "Warrior",
+    "DEMONHUNTER": "Demon Hunter",
+    "DEATHKNIGHT": "Death Knight",
+}
+
+HERO_RATINGS_CACHE = CACHE_DIR / "hero_ratings.json"
+_hero_ratings: Optional[Dict[str, dict]] = None
+
+
+def load_hero_ratings() -> Dict[str, dict]:
+    """Returns per-class arena strength. Keys: class constant (DRUID, MAGE, …).
+    Computed from HSReplay included_winrate (primary) or HearthArena card scores (fallback)."""
+    global _hero_ratings
+    if _hero_ratings is not None:
+        return _hero_ratings
+    if HERO_RATINGS_CACHE.exists() and (time.time() - HERO_RATINGS_CACHE.stat().st_mtime) < CACHE_TTL:
+        cached = _load_json(HERO_RATINGS_CACHE)
+        if cached:
+            _hero_ratings = cached
+            print(f"[ratings] Hero ratings from cache: {len(_hero_ratings)} classes.")
+            return _hero_ratings
+    print("[ratings] Computing hero ratings...")
+    _hero_ratings = _compute_hero_ratings()
+    if _hero_ratings:
+        _save_json(HERO_RATINGS_CACHE, _hero_ratings)
+    return _hero_ratings
+
+
+def _compute_hero_ratings() -> Dict[str, dict]:
+    result: Dict[str, dict] = {}
+
+    # Primary: HSReplay per-class card included_winrate
+    hsreplay = load_hsreplay_arena_stats()
+    if hsreplay:
+        for cls, cards in hsreplay.items():
+            if not cards:
+                continue
+            wrs = sorted(
+                [float(c["included_winrate"]) for c in cards if "included_winrate" in c],
+                reverse=True,
+            )
+            if len(wrs) < 5:
+                continue
+            top30 = wrs[:30]
+            avg_wr = sum(top30) / len(top30)
+            # Normalize: 50% → 0, 56% → 100 (typical arena WR band)
+            score = int(min(100, max(0, (avg_wr - 50.0) / 6.0 * 100)))
+            result[cls] = {
+                "score": score,
+                "tier": _score_to_tier(score),
+                "display": CLASS_DISPLAY_NAMES.get(cls, cls.capitalize()),
+                "avg_winrate": round(avg_wr, 2),
+            }
+
+    # Fallback: average top-30 HearthArena scores per class
+    if not result:
+        ratings = load_ratings()
+        card_db = load_card_db()
+        class_scores: Dict[str, List[int]] = {}
+        for card_id, rating in ratings.items():
+            card = card_db.get(card_id) or card_db.get("CORE_" + card_id, {})
+            cls = card.get("cardClass", "")
+            if not cls or cls == "NEUTRAL":
+                continue
+            s = rating.get("score")
+            if s is not None:
+                class_scores.setdefault(cls, []).append(s)
+        for cls, scores in class_scores.items():
+            top30 = sorted(scores, reverse=True)[:30]
+            if len(top30) < 10:
+                continue
+            avg = sum(top30) / len(top30)
+            result[cls] = {
+                "score": int(avg),
+                "tier": _score_to_tier(int(avg)),
+                "display": CLASS_DISPLAY_NAMES.get(cls, cls.capitalize()),
+                "avg_winrate": None,
+            }
+
+    print(f"[ratings] Hero ratings computed: {list(result.keys())}")
+    return result

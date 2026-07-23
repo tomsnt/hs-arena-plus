@@ -112,7 +112,7 @@ class ColorButton(QPushButton):
     def _pick(self):
         c = _parse_color(self._value)
         new_c = QColorDialog.getColor(
-            c, self, "Scegli colore",
+            c, self, "Pick color",
             QColorDialog.ColorDialogOption.ShowAlphaChannel
         )
         if new_c.isValid():
@@ -137,7 +137,7 @@ class SettingsWindow(QWidget):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setWindowTitle("HS Arena Plus — Impostazioni UI")
+        self.setWindowTitle("HS Arena Plus — UI Settings")
         self.setMinimumWidth(380)
         self._controls: dict = {}
         self._debounce = QTimer(self)
@@ -169,63 +169,63 @@ class SettingsWindow(QWidget):
 
         # ── Layout group ─────────────────────────────────────────────────
         vlay.addWidget(self._group("Layout", [
-            ("tile_height",        "Altezza max tile (px, 0=auto)", "int", 0, 400),
-            ("tile_max_width",     "Larghezza max tile (px, 0=auto)", "int", 0, 800),
-            ("tile_y_offset",      "Offset Y tile (px)",       "int",  -50, 200),
-            ("margin_h",           "Margine orizzontale",      "int",    0,  60),
-            ("margin_v",           "Margine verticale",        "int",    0,  60),
-            ("spacing",            "Spaziatura base righe",    "int",    0,  30),
-            ("gap_header_name",    "Gap header → nome",        "int",    0,  40),
-            ("gap_name_stats",     "Gap nome → mana/tipo",     "int",    0,  40),
-            ("gap_stats_content",    "Gap mana → curva/sinergie",   "int", 0, 40),
-            ("gap_curve_syn",        "Gap curva → sinergie titolo", "int", 0, 40),
-            ("gap_syn_title_cards",  "Gap titolo → lista sinergie", "int", 0, 40),
-            ("tier_col_pct",         "Larghezza colonna tier",      "slider", 10, 90, "%"),
+            ("tile_height",        "Max tile height (px, 0=auto)", "int", 0, 400),
+            ("tile_max_width",     "Max tile width (px, 0=auto)", "int", 0, 800),
+            ("tile_y_offset",      "Tile Y offset (px)",       "int",  -50, 200),
+            ("margin_h",           "Horizontal margin",        "int",    0,  60),
+            ("margin_v",           "Vertical margin",          "int",    0,  60),
+            ("spacing",            "Row base spacing",         "int",    0,  30),
+            ("gap_header_name",    "Gap header → name",        "int",    0,  40),
+            ("gap_name_stats",     "Gap name → mana/type",     "int",    0,  40),
+            ("gap_stats_content",  "Gap mana → curve/synergies",  "int", 0, 40),
+            ("gap_curve_syn",      "Gap curve → synergy title",   "int", 0, 40),
+            ("gap_syn_title_cards","Gap title → synergy list",    "int", 0, 40),
+            ("tier_col_pct",       "Tier column width",           "slider", 10, 90, "%"),
         ]))
 
         # ── Fonts group ───────────────────────────────────────────────────
         vlay.addWidget(self._group("Font (pt)", [
-            ("font_tier",      "Tier (lettera)",   "int", 6, 60),
+            ("font_tier",      "Tier (letter)",    "int", 6, 60),
             ("font_score",     "Score",            "int", 6, 40),
-            ("font_name",      "Nome carta",       "int", 6, 40),
-            ("font_stats",     "Mana / tipo",      "int", 6, 40),
-            ("font_curve",     "Nota curva",       "int", 6, 40),
-            ("font_syn_title", "Sinergie titolo",  "int", 6, 30),
-            ("font_syn_cards", "Sinergie lista",   "int", 6, 30),
+            ("font_name",      "Card name",        "int", 6, 40),
+            ("font_stats",     "Mana / type",      "int", 6, 40),
+            ("font_curve",     "Curve note",       "int", 6, 40),
+            ("font_syn_title", "Synergy title",    "int", 6, 30),
+            ("font_syn_cards", "Synergy list",     "int", 6, 30),
         ]))
 
         # ── Deck widget group ─────────────────────────────────────────────
         vlay.addWidget(self._group("Deck Rating Widget", [
-            ("deck_x_pct",       "Posizione X (% schermo)", "slider",  0, 100, "%"),
-            ("deck_y_pct",       "Posizione Y (% schermo)", "slider",  0, 100, "%"),
-            ("color_deck_bg",     "Sfondo",                 "color"),
-            ("color_deck_border", "Bordo",                  "color"),
+            ("deck_x_pct",       "Position X (% screen)", "slider",  0, 100, "%"),
+            ("deck_y_pct",       "Position Y (% screen)", "slider",  0, 100, "%"),
+            ("color_deck_bg",     "Background",           "color"),
+            ("color_deck_border", "Border",               "color"),
         ]))
 
         # ── Colors group ──────────────────────────────────────────────────
-        vlay.addWidget(self._group("Colori tile", [
-            ("color_bg",          "Sfondo tile"),
-            ("color_bg_best",     "Sfondo migliore"),
-            ("color_border",      "Bordo"),
-            ("color_border_best", "Bordo migliore"),
-            ("color_score",       "Testo score"),
-            ("color_stats",       "Testo mana/tipo"),
-            ("color_curve",       "Testo curva"),
-            ("color_syn_title",   "Titolo sinergie"),
-            ("color_syn_cards",   "Lista sinergie"),
+        vlay.addWidget(self._group("Tile colors", [
+            ("color_bg",          "Tile background"),
+            ("color_bg_best",     "Best background"),
+            ("color_border",      "Border"),
+            ("color_border_best", "Best border"),
+            ("color_score",       "Score text"),
+            ("color_stats",       "Mana/type text"),
+            ("color_curve",       "Curve text"),
+            ("color_syn_title",   "Synergy title"),
+            ("color_syn_cards",   "Synergy list"),
         ]))
 
         vlay.addStretch()
 
         # ── Buttons ───────────────────────────────────────────────────────
         btn_row = QHBoxLayout()
-        btn_reset = QPushButton("↺  Ripristina default")
+        btn_reset = QPushButton("↺  Reset defaults")
         btn_reset.setFixedHeight(32)
         btn_reset.setStyleSheet(
             "background: #333; color: #ccc; border: 1px solid #555; border-radius: 4px;"
         )
         btn_reset.clicked.connect(self._reset)
-        btn_save = QPushButton("✓  Salva")
+        btn_save = QPushButton("✓  Save")
         btn_save.setFixedHeight(32)
         btn_save.setStyleSheet(
             "background: #4CAF50; color: white; font-weight: bold; border-radius: 4px;"

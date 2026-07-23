@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """
 HS Arena Plus — main entry point.
-Usa screenshot + OCR per rilevare le carte in arena draft,
-e mostra un overlay trasparente con tier ratings da HearthArena.
+Uses screenshot + OCR to detect cards in arena draft,
+and shows a transparent overlay with tier ratings from HearthArena.
 
-Uso:
-    python main.py           # avvia normalmente
-    python main.py --demo    # testa l'overlay con carte fisse
+Usage:
+    python main.py           # start normally
+    python main.py --demo    # test overlay with fixed cards
 """
 import sys
 import threading
@@ -26,7 +26,7 @@ def main():
         card_db = load_card_db()
         load_ratings()
         ready_event.set()
-        print("[main] Dati caricati. In attesa di eventi arena...")
+        print("[main] Data loaded. Waiting for arena events...")
 
     preload_thread = threading.Thread(target=preload, daemon=True)
     preload_thread.start()
@@ -35,7 +35,7 @@ def main():
 
     if demo_mode:
         demo_cards = ["TOY_504", "REV_956", "MAW_024"]  # S / A / F
-        print(f"[main] DEMO MODE — carte: {demo_cards}")
+        print(f"[main] DEMO MODE — cards: {demo_cards}")
         from PyQt6.QtCore import QTimer
         QTimer.singleShot(500, lambda: overlay.push_cards(demo_cards))
     else:
@@ -47,7 +47,7 @@ def main():
             )
             watcher.set_card_db(card_db)
             watcher.start()
-            print("[main] Screen watcher avviato. Vai in arena e scegli le carte!")
+            print("[main] Screen watcher started. Go to arena and pick your cards!")
 
         watcher_thread = threading.Thread(target=start_watcher, daemon=True)
         watcher_thread.start()

@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-Calibrazione visuale HS Arena Plus.
-Mostra 3 sagome carta sovrapponibili allo screenshot.
-Ogni sagoma include bordo, mana, titolo (dorato), testo, attacco, vita.
-Salva solo le coordinate della fascia nome (usate dall'OCR).
+Visual calibration for HS Arena Plus.
+Shows 3 card outlines overlaid on the screenshot.
+Each outline includes border, mana, title (golden), text, attack, health.
+Saves only the name band coordinates (used by OCR).
 """
 import json
 import subprocess
@@ -40,7 +40,7 @@ class DraggableCard(QWidget):
     changed = pyqtSignal()
 
     _BORDER   = [QColor(255, 90, 90), QColor(70, 210, 90), QColor(80, 140, 255)]
-    _LABELS   = ["Carta 1", "Carta 2", "Carta 3"]
+    _LABELS   = ["Card 1", "Card 2", "Card 3"]
 
     def __init__(self, index: int, parent: QWidget, x: int, y: int, w: int):
         super().__init__(parent)
@@ -201,10 +201,10 @@ class CalibrationWindow(QWidget):
         lay.setContentsMargins(10, 10, 10, 10)
 
         info = QLabel(
-            "Trascina le <b>sagome carta</b> sopra i <b>nomi delle 3 carte</b> "
-            "(angolo basso-destra per scalare). "
-            "Il riquadro <b style='color:#d4a017'>dorato</b> è l'area letta dall'OCR. "
-            "Poi clicca <b>✓ Salva</b>."
+            "Drag the <b>card outlines</b> over the <b>3 card names</b> "
+            "(bottom-right corner to resize). "
+            "The <b style='color:#d4a017'>golden</b> box is the OCR read area. "
+            "Then click <b>✓ Save</b>."
         )
         info.setWordWrap(True)
         info.setStyleSheet("background:#1a1a2e;color:#eee;padding:8px;border-radius:6px;")
@@ -221,11 +221,11 @@ class CalibrationWindow(QWidget):
         bot.addWidget(self._status)
         bot.addStretch()
 
-        btn_new = QPushButton("Nuovo screenshot")
+        btn_new = QPushButton("New screenshot")
         btn_new.clicked.connect(self._retake)
         bot.addWidget(btn_new)
 
-        btn_save = QPushButton("✓  Salva calibrazione")
+        btn_save = QPushButton("✓  Save calibration")
         btn_save.setStyleSheet("background:#4CAF50;color:white;font-weight:bold;padding:6px 16px;")
         btn_save.clicked.connect(self._save)
         bot.addWidget(btn_save)
@@ -233,10 +233,10 @@ class CalibrationWindow(QWidget):
         lay.addLayout(bot)
 
     def _retake(self):
-        self._status.setText("Screenshot in corso...")
+        self._status.setText("Taking screenshot...")
         QApplication.processEvents()
         if not take_screenshot():
-            self._status.setText("ERRORE screenshot — Privacy → Registrazione schermo")
+            self._status.setText("ERROR screenshot — Privacy → Screen Recording")
             return
         self._ss_path = str(SCREENSHOT_PATH)
         self._load_and_show()
@@ -247,7 +247,7 @@ class CalibrationWindow(QWidget):
             img = Image.open(self._ss_path)
             orig_w, orig_h = img.size
         except Exception:
-            self._status.setText(f"ERRORE: impossibile aprire {self._ss_path}")
+            self._status.setText(f"ERROR: cannot open {self._ss_path}")
             return
 
         scale = min(DISPLAY_MAX_W / orig_w, DISPLAY_MAX_H / orig_h, 1.0)
@@ -279,12 +279,12 @@ class CalibrationWindow(QWidget):
 
         self._canvas_layout.addWidget(self.canvas)
         self._status.setText(
-            f"{orig_w}×{orig_h}px — trascina i rettangoli sui nomi delle carte"
+            f"{orig_w}×{orig_h}px — drag rectangles over card names"
         )
         self.adjustSize()
 
     def _positions_from_saved(self, disp_w, disp_h, def_w, def_h):
-        """Ricostruisce posizione/scala di ogni card dai titoli salvati."""
+        """Reconstruct each card's position/scale from saved title regions."""
         if CALIBRATION_FILE.exists():
             try:
                 data = json.loads(CALIBRATION_FILE.read_text())
@@ -320,8 +320,8 @@ class CalibrationWindow(QWidget):
             data["window_owner"] = self._window_owner
             data["window_label"] = self._window_owner
         CALIBRATION_FILE.write_text(json.dumps(data, indent=2))
-        self._status.setText(f"✓ Salvato — {CALIBRATION_FILE}")
-        print(f"[calibrate] Salvato — {regions}")
+        self._status.setText(f"✓ Saved — {CALIBRATION_FILE}")
+        print(f"[calibrate] Saved — {regions}")
         self.saved.emit()
 
 
