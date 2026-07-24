@@ -148,15 +148,14 @@ def _card_tags(card: dict) -> Tuple[Set[str], Set[str]]:
         provides.add("card_played_first")   # any non-combo card triggers combos
 
     # ── Divine Shield ─────────────────────────────────────────────────────
-    if "divine_shield" in kws:
+    # Only cards that trigger on divine shield being lost (e.g. Jitterbug) benefit from re-granting
+    if re.search(r"loses? divine shield|whenever .{0,30}divine shield", text):
         needs.add("grants_divine_shield")
 
-    if re.search(r"give .{0,25}divine shield", text):
+    ds_match = re.search(r"give .{0,25}divine shield", text)
+    infuse_pos = text.find("infuse")
+    if ds_match and (infuse_pos == -1 or ds_match.start() < infuse_pos):
         provides.add("grants_divine_shield")
-
-    # Cards with rush/lifesteal/windfury become extra dangerous with divine shield
-    if ctype == "MINION" and (kws & {"rush", "lifesteal", "windfury", "divine_shield"}):
-        needs.add("grants_divine_shield")
 
     # ── Freeze ────────────────────────────────────────────────────────────
     if "freeze" in kws and ctype == "SPELL":
@@ -241,6 +240,7 @@ def _card_tags(card: dict) -> Tuple[Set[str], Set[str]]:
 _GENERIC_SYNERGY_TAGS = {
     "card_played_first",  # every non-combo card provides this
     "cost_reduction",     # too universal; "Rush the Stage" etc. cause false positives
+    "casts_spells",       # every spell provides this; too broad to be a meaningful synergy
 }
 
 
