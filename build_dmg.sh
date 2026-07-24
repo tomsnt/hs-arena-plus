@@ -31,14 +31,15 @@ echo "=== Packaging: $APP_NAME → $DMG_FINAL ==="
 
 # ── Clean up ──────────────────────────────────────────────────────────────────
 rm -f "$DMG_FINAL" "$DMG_TMP"
+# Detach any leftover mount from previous failed run
+hdiutil detach "/Volumes/$VOLUME_NAME" 2>/dev/null || true
 
 # ── Stage folder (app + Applications symlink) ─────────────────────────────────
 STAGE=$(mktemp -d)
 cp -r "$APP_SRC" "$STAGE/${APP_NAME}.app"
 ln -s /Applications "$STAGE/Applications"
 
-# ── Create compressed DMG directly from staged folder ─────────────────────────
-# hdiutil will auto-size to fit content
+# ── Create writable DMG from staged folder ────────────────────────────────────
 hdiutil create \
     -volname "$VOLUME_NAME" \
     -srcfolder "$STAGE" \
@@ -49,38 +50,39 @@ hdiutil create \
 rm -rf "$STAGE"
 
 # ── Mount the writable image ──────────────────────────────────────────────────
-MOUNT_POINT=$(hdiutil attach -readwrite -noverify -noautoopen "$DMG_TMP" \
-    | awk 'END{print $NF}')
+MOUNT_POINT="/Volumes/$VOLUME_NAME"
+hdiutil attach -readwrite -noverify -noautoopen "$DMG_TMP" > /dev/null
 echo "Mounted at: $MOUNT_POINT"
-
-# Wait for Finder to register the volume
-sleep 1
+sleep 2
 
 # ── Set window layout via Finder AppleScript ──────────────────────────────────
 osascript << APPLESCRIPT
 tell application "Finder"
     tell disk "$VOLUME_NAME"
         open
+        delay 1
         set current view of container window to icon view
         set toolbar visible of container window to false
         set statusbar visible of container window to false
-        -- Window rectangle: {left, top, right, bottom}
         set bounds of container window to {300, 150, 820, 450}
         set viewOptions to the icon view options of container window
         set arrangement of viewOptions to not arranged
         set icon size of viewOptions to 120
         set text size of viewOptions to 12
-        -- Position: app on left, Applications on right
         set position of item "${APP_NAME}.app" of container window to {155, 145}
-        set position of item "Applications" of container window to {365, 145}
-        close
-        open
+        try
+            set position of item "Applications" of container window to {365, 145}
+        end try
         update without registering applications
         delay 2
         close
     end tell
 end tell
 APPLESCRIPT
+
+# Flush DS_Store to disk
+sync
+sleep 1
 
 # ── Unmount ───────────────────────────────────────────────────────────────────
 hdiutil detach "$MOUNT_POINT" > /dev/null
